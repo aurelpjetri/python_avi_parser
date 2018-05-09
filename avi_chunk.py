@@ -58,8 +58,7 @@ class LeafChunk(AviChunk):
         return self.size
 
     def add_data(self, field, value):
-        # pos è un intero che specifica la posizione del campo all'interno del chunk
-        # prima era la chiave ma ho scorperto che nel file sono scritti solo i valori in sequenza.
+        # pos in an int specifying the position of the field within the chunk
         self.data_dict[field]=value
 
     def get_data(self):

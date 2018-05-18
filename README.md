@@ -19,17 +19,21 @@ It should work also with other versions of Python.
 
 ## Running the Project
 
-When in the projects folder run the command `python main.py filename.avi`, this will parse the file and generate an xml file named *filename-tree.xml* and eventually a log file named *filename-log.txt*.
+When in the projects folder run the command `python main.py filename.avi`, this will parse the file and generate:
+* **xmls** folder in the project's directory if not already existing;
+* a **filename-tree.xml** file in the *xmls* folder;
+* (eventually) **logs** folder in the project's directory if not already existing;
+* (eventually) a **filename-log.txt** file in the *logs* folder.
+
+Alternatively there is the possibility to specify the path and file name of the outputted XML and log file. In this case no folder will be created.
 
 The following optional arguments are available:
 
 *  **-h, --help**           show this help message and exit
 *  **-v** VERBOSE, **--verbose** VERBOSE     Verbosity flag for warnings (default: True)
-*  **-o** OUT, **--out** OUT     XML filename (default: <AVI filename>-tree.xml)
-*  **-l** LOG, **--log** LOG     log filename (default: <AVI filename>-log.txt)
+*  **-o** OUT, **--out** OUT     path and name of the XML file created (default: ./xmls/<AVI filename>-tree.xml)
+*  **-l** LOG, **--log** LOG     path and name of the log file created (default: ./logs/<AVI filename>-log.txt)
 *  **-m** MOVI, **--movi** MOVI  flag to show stream chunks in movi list (default: True)
-*  **-xd** XMLDIR, **--xmldir** XMLDIR directory path for the generated xml (default: ./xmls/)
-*  **-ld** LOGDIR, **--logdir** LOGDIR directory path for the log eventually generated (default: ./logs/)
 
 Only known chunks' content will be correctly interpreted.
 

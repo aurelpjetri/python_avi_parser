@@ -10,6 +10,8 @@ import utils
 
 import argparse
 
+import os
+
 # gets the file and the bytes it has to explore within the file, returns the list of chunks dicovered
 def search_list(file, limit):
     chunks = list()
@@ -130,7 +132,7 @@ def get_file_size(fileobject):
     fileobject.seek(0,0)
     return size
 
-def main(filename, verbose, output, logfn, show_data_chunks, xmldir, logdir):
+def main(filename, verbose, output_path, log_path, show_data_chunks):
     file = open(filename, 'rb')
     file_size = get_file_size(file)
 
@@ -178,8 +180,12 @@ def main(filename, verbose, output, logfn, show_data_chunks, xmldir, logdir):
 
 
     # write the xml file
-    output_name = (title.split('.')[0] + "-tree.xml") if output is None else output
-    xmlfile = open(xmldir + output_name, 'w')
+
+    if not os.path.exists('./xmls') and output_path is None:
+        os.makedirs('./xmls')
+
+    output_name = ('./xmls/'+title.split('.')[0] + "-tree.xml") if output_path is None else output_path
+    xmlfile = open(output_name, 'w')
     data = ET.tostring(root, encoding="unicode")
     data = '<?xml version="1.0" encoding="UTF-8"?>'+data
     xmlfile.write(data)
@@ -190,8 +196,12 @@ def main(filename, verbose, output, logfn, show_data_chunks, xmldir, logdir):
     # if log string where collected write a log file
     if len(log_strings)>0:
         # create the log file
-        output_log = (title.split('.')[0] + "-log.txt") if logfn is None else logfn
-        log_file = open(logdir + output_log, 'w')
+
+        if not (os.path.exists('./logs')) and log_path is None:
+            os.makedirs('./logs')
+
+        output_log = ('./logs/'+title.split('.')[0] + "-log.txt") if log_path is None else log_path
+        log_file = open(output_log, 'w')
         for ls in log_strings:
             log_file.write(ls+'\n')
         log_file.close()
@@ -201,11 +211,9 @@ def main(filename, verbose, output, logfn, show_data_chunks, xmldir, logdir):
 parser = argparse.ArgumentParser()
 parser.add_argument('path', type=str, help='path to the AVI file')
 parser.add_argument('-v', '--verbose', type=str, default="True", help='Verbosity flag for warnings (default: False)')
-parser.add_argument('-o', '--out', type=str, default=None, help='XML filename (default: <AVI filename>-tree.xml)')
-parser.add_argument('-l', '--log', type=str, default=None, help='log filename (default: <AVI filename>-log.txt)')
+parser.add_argument('-o', '--out', type=str, default=None, help='path and name of the XML file created (default: ./xmls/<AVI filename>-tree.xml)')
+parser.add_argument('-l', '--log', type=str, default=None, help='path and name of the log file created (default: ./logs/<AVI filename>-log.txt)')
 parser.add_argument('-m', '--movi', type=str, default="True", help='flag to show stream chunks in movi list (default: True)')
-parser.add_argument('-xd', '--xmldir', type=str, default="./xmls/", help='directory path for the generated xml (default: ./xmls/)')
-parser.add_argument('-ld', '--logdir', type=str, default="./logs/", help='directory path for the log eventually generated (default: ./logs/)')
 
 args = parser.parse_args()
 
@@ -224,6 +232,6 @@ elif args.verbose == 'True' or args.verbose == 'true' or args.verbose == 'TRUE':
 else:
     raise ValueError("ERROR: the verbose argument is not valid")
 
-main(args.path, verbose=args.verbose, output=args.out, logfn=args.log, show_data_chunks=args.movi, xmldir=args.xmldir, logdir=args.logdir)
+main(args.path, verbose=args.verbose, output_path=args.out, log_path=args.log, show_data_chunks=args.movi)
 
-#main('avi_samples/sample.AVI', verbose=True, output=None, logfn=None, show_data_chunks=True, xmldir='./xmls/', logdir='./logs/')
+#main('avi_samples/sample.AVI', verbose=True, output_path=None, log_path=None, show_data_chunks=True)

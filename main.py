@@ -51,17 +51,12 @@ def search_list(file, limit):
             break
     return chunks
 
-
-def remove_control_chars(s):
-    r = ''
+def alert_control_chars(s):
     warning = False
     for ch in s:
-        if category(ch)[0] != "C":
-            r += ch
-        else:
+        if category(ch)[0] == "C":
             warning = True
-    return r, warning
-
+    return warning
 
 def populate_xml(parent, et_parent, show_data_chunks, verbose):
     log_strings = list()
@@ -83,7 +78,6 @@ def populate_xml(parent, et_parent, show_data_chunks, verbose):
                 name=c.get_name().decode('utf-8')
 
                 nameChars = name[2:]
-                nameDigits = name[:2]
 
                 # subindex special case: some files can have indexes
                 # identified for example as 'ix01' instead of '01ix'
@@ -94,10 +88,23 @@ def populate_xml(parent, et_parent, show_data_chunks, verbose):
                         print(log_s)
                         log_strings.append(log_s)
                     nameChars = name[:2]
-                    nameDigits = name[2:]
                 if show_data_chunks or ( (not show_data_chunks) and (nameChars == 'ix') ):
-                    node = ET.SubElement(et_parent, nameChars + '-' + str(child))
-                    node.set("stream", nameDigits)
+                    node = ET.SubElement(et_parent, 'stream' + '-' + str(child))
+
+                    frame_type = nameChars
+                    if frame_type == 'db':
+                        frame_type = 'Uncompressed video'
+                    if frame_type == 'dc':
+                        frame_type = 'Compressed video'
+                    if frame_type == 'pc':
+                        frame_type = 'Palette change'
+                    if frame_type == 'wb':
+                        frame_type = 'Audio data'
+                    if frame_type == 'ix':
+                        frame_type = 'Subindex'
+
+                    node.set("type", frame_type)
+                    node.set("origin", name)
             else:
                 # other basic chunks
                 node = ET.SubElement(et_parent, c.get_name().decode('utf-8') + '-' +str(child))
@@ -110,16 +117,19 @@ def populate_xml(parent, et_parent, show_data_chunks, verbose):
                     for i in range(len(c_dict)):
                         key = c_dict_keys[i]
 
-                        # special case in which the decoded field contains control characters which are removed
-                        s, w = remove_control_chars(str(c_dict[key]))
+                        # special case in which the decoded field contains control characters which are not decoded
+                        w = alert_control_chars(str(c_dict[key]))
                         if w:
 
                             if verbose:
-                                log_s = "Removed control characters in chunk '{}' (#{}): field '{}' (#{}) value was (in bytes): {} wrote: {} (decoded) instead ".format(c.get_name().decode('utf-8'), str(child), key ,str(i), str(c_dict[key].encode('utf-8')), s.encode('utf-8'))
-                                print('WARNING: \n'+log_s)
+                                log_s = "Control characters are present in chunk '{}' (#{}): field '{}' (#{}) is {}".format(
+                                    c.get_name().decode('utf-8'), str(child), key, str(i), str(c_dict[key]).encode('utf-8'))
+                                print('WARNING: \n' + log_s)
                                 log_strings.append(log_s)
 
-                        node.set(key+'-'+str(i+1), s)
+                            node.set(key + '-' + str(i + 1), str(c_dict[key].encode("utf-8")))
+                        else:
+                            node.set(key + '-' + str(i + 1), str(c_dict[key]))
 
                 else:
                     node.set("rawData-1", str(c.get_rawdata()))
@@ -132,7 +142,7 @@ def get_file_size(fileobject):
     fileobject.seek(0,0)
     return size
 
-def main(filename, verbose, output_path, log_path, show_data_chunks):
+def OLD_main(filename, verbose, output_path, log_path, show_data_chunks):
     file = open(filename, 'rb')
     file_size = get_file_size(file)
 
@@ -187,11 +197,88 @@ def main(filename, verbose, output_path, log_path, show_data_chunks):
     output_name = ('./xmls/'+title.split('.')[0] + "-tree.xml") if output_path is None else output_path
     xmlfile = open(output_name, 'w')
     data = ET.tostring(root, encoding="unicode")
-    data = '<?xml version="1.0" encoding="UTF-8"?>'+data
+    data = '<?xml version="1.0" encoding="UTF-8"?>'+ data
     xmlfile.write(data)
     xmlfile.close()
 
-    file.close
+    file.close()
+
+    # if log string where collected write a log file
+    if len(log_strings)>0:
+        # create the log file
+
+        if not (os.path.exists('./logs')) and log_path is None:
+            os.makedirs('./logs')
+
+        output_log = ('./logs/'+title.split('.')[0] + "-log.txt") if log_path is None else log_path
+        log_file = open(output_log, 'w')
+        for ls in log_strings:
+            log_file.write(ls+'\n')
+        log_file.close()
+
+    return None
+
+def main(filename, verbose, output_path, log_path, show_data_chunks):
+    file = open(filename, 'rb')
+    file_size = get_file_size(file)
+
+    log_strings = list()
+
+    # xml root tag
+    root = ET.Element("root")
+    title = filename.split('/')[-1]
+    root.set('filename', title)
+    root.set('size', str(file_size))
+
+    bytes_explored = 0
+    while(bytes_explored<file_size):
+        riff = chunk.Chunk(file, bigendian=False)
+
+        # get the RIFF  'AVI ' chunk of the file
+        riff_name = riff.getname()
+        riff_size = riff.getsize()
+
+        if riff_name == b'RIFF':
+            riff_type = riff.read(4)
+            riffchunk = ListChunk(riff_name, riff_size, riff_type)
+            # parse the chunk. This is a recurrent function over the list chunks in the file
+            avi_chunks = search_list(file, riff_size-4)
+
+            # add the collected chunks
+            riffchunk.add_subchunks(avi_chunks)
+
+            # xml tag for the RIFF chunk
+            rifftree = ET.SubElement(root,"RIFF")
+            rifftree.set('type', riff_type.decode('utf-8'))
+            rifftree.set('size', str(riff_size))
+
+            # recursive function to create xml tags and set the reltive attributes
+            log_strings = populate_xml(riffchunk, rifftree, show_data_chunks, verbose)
+
+        else:
+            print(riff_name)
+            raw = file.read(riff_size)
+            unknown = LeafChunk("unknown", len(raw))
+            unknown.add_rawdata(raw)
+
+            node = ET.SubElement(root, "unknown")
+            node.set('rawData', str(unknown.get_rawdata()))
+
+        bytes_explored += riff_size + 8
+
+    # write the xml file
+
+    if not os.path.exists('./xmls') and output_path is None:
+        os.makedirs('./xmls')
+
+    output_name = ('./xmls/'+title.split('.')[0] + "-tree.xml") if output_path is None else output_path
+    xmlfile = open(output_name, 'w')
+    data = ET.tostring(root, encoding="unicode")
+    data = '<?xml version="1.0" encoding="UTF-8"?>'+ data
+    xmlfile.write(data)
+    xmlfile.close()
+
+    file.close()
 
     # if log string where collected write a log file
     if len(log_strings)>0:

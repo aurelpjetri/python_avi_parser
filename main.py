@@ -122,7 +122,7 @@ def populate_xml(parent, et_parent, show_data_chunks, verbose):
                         if w:
 
                             if verbose:
-                                log_s = "Control characters are present in chunk '{}' (#{}): field '{}' (#{}) is {}".format(
+                                log_s = "Control characters are present in chunk '{}' (#{}): field '{}' (#{}) is {}, therefore wrote in byte format".format(
                                     c.get_name().decode('utf-8'), str(child), key, str(i), str(c_dict[key]).encode('utf-8'))
                                 print('WARNING: \n' + log_s)
                                 log_strings.append(log_s)

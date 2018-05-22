@@ -156,39 +156,39 @@ def main(filename, verbose, output_path, log_path, show_data_chunks):
 
     bytes_explored = 0
     while(bytes_explored<file_size):
-        riff = chunk.Chunk(file, bigendian=False)
+        current_chunk = chunk.Chunk(file, bigendian=False)
 
         # get the RIFF  'AVI ' chunk of the file
-        riff_name = riff.getname()
-        riff_size = riff.getsize()
+        current_chunk_name = current_chunk.getname()
+        current_chunk_size = current_chunk.getsize()
 
-        if riff_name == b'RIFF':
-            riff_type = riff.read(4)
-            riffchunk = ListChunk(riff_name, riff_size, riff_type)
+        if current_chunk_name == b'RIFF':
+            current_chunk_type = current_chunk.read(4)
+            riffchunk = ListChunk(current_chunk_name, current_chunk_size, current_chunk_type)
             # parse the chunk. This is a recurrent function over the list chunks in the file
-            avi_chunks = search_list(file, riff_size-4)
+            avi_chunks = search_list(file, current_chunk_size-4)
 
             # add the collected chunks
             riffchunk.add_subchunks(avi_chunks)
 
             # xml tag for the RIFF chunk
             rifftree = ET.SubElement(root,"RIFF")
-            rifftree.set('type', riff_type.decode('utf-8'))
-            rifftree.set('size', str(riff_size))
+            rifftree.set('type', current_chunk_type.decode('utf-8'))
+            rifftree.set('size', str(current_chunk_size))
 
             # recursive function to create xml tags and set the reltive attributes
             log_strings = populate_xml(riffchunk, rifftree, show_data_chunks, verbose)
 
         else:
-            print(riff_name)
-            raw = file.read(riff_size)
+            print(current_chunk_name)
+            raw = file.read(current_chunk_size)
             unknown = LeafChunk("unknown", len(raw))
             unknown.add_rawdata(raw)
 
             node = ET.SubElement(root, "unknown")
             node.set('rawData', str(unknown.get_rawdata()))
 
-        bytes_explored += riff_size + 8
+        bytes_explored += current_chunk_size + 8
 
     # write the xml file
 
